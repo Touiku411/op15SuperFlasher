@@ -1,5 +1,11 @@
 use std::{fs, io::{self, Read, Write}, path::Path, process::Command};
 
+fn pause_terminal() {
+                print!("按 Enter 鍵繼續...");
+                io::stdout().flush().unwrap();
+                let mut temp = String::new();
+                io::stdin().read_line(&mut temp).unwrap();
+}
 fn enter_choice() -> i32{
         println!("       ---------ONEPLUS 15 升降級工具 (Rust版)---------");
         println!("\x1b[1;31m====================================================");
@@ -92,9 +98,7 @@ fn clear_ota(){
                 if input.trim().eq_ignore_ascii_case("y") {
                         let _ = fs::remove_dir_all(dir);
                         let _ = fs::create_dir_all(dir);
-                        println!("刪除完成，按 Enter 鍵返回...");
-                        let mut temp = String::new();
-                        io::stdin().read_line(&mut temp).unwrap();
+                        pause_terminal();
                 }
                 else{
                         println!("已取消刪除");
@@ -115,9 +119,7 @@ fn clear_images() {
                 if input.trim().eq_ignore_ascii_case("y") {
                         let _ = fs::remove_dir_all(dir);
                         let _ = fs::create_dir_all(dir);
-                        println!("刪除完成，按 Enter 鍵返回...");
-                         let mut temp = String::new();
-                        io::stdin().read_line(&mut temp).unwrap();
+                        pause_terminal();
                 }
                 else{
                         println!("已取消刪除");
