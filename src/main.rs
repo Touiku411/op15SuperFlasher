@@ -48,7 +48,7 @@ fn environment() {
                 println!("4. 重啟至 Recovery");
                 println!("5. 返回");
                 print!("? ");
-                io::stdout().flush() .unwrap();
+                io::stdout().flush().unwrap();
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
                 match input.trim().parse::<i32>() {
@@ -182,6 +182,10 @@ fn unpack() {
         }
         pause_terminal();
 }
+
+fn Start(){
+
+}
 fn main() {
         let _ = fs::create_dir_all("images");
         let _ = fs::create_dir_all("tools");
@@ -194,7 +198,7 @@ fn main() {
                         3 => unpack(),
                         4 => clear_ota(),
                         5 => clear_images(),
-                        6 => println!("執行：開始刷機..."),
+                        6 => println!("開始刷機"),
                         7=> {
                                 println!("結束");
                                 break;
