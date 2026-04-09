@@ -1,7 +1,7 @@
-use std::{fs, io::{self, Read, Write}, path::Path, process::Command};
+use std::{fs, io::{self, /*Read,*/ Write}, path::{Path}, process::Command, thread, time::Duration};
 
-fn pause_terminal() {
-                print!("按 Enter 鍵繼續...");
+fn pause_terminal(msg: &str) {
+                print!("{}",msg);
                 io::stdout().flush().unwrap();
                 let mut temp = String::new();
                 io::stdin().read_line(&mut temp).unwrap();
@@ -100,7 +100,7 @@ fn clear_ota(){
                 if input.trim().eq_ignore_ascii_case("y") {
                         let _ = fs::remove_dir_all(dir);
                         let _ = fs::create_dir_all(dir);
-                        pause_terminal();
+                        pause_terminal("按 Enter 鍵繼續...");
                 }
                 else{
                         println!("已取消刪除");
@@ -121,7 +121,7 @@ fn clear_images() {
                 if input.trim().eq_ignore_ascii_case("y") {
                         let _ = fs::remove_dir_all(dir);
                         let _ = fs::create_dir_all(dir);
-                        pause_terminal();
+                        pause_terminal("按 Enter 鍵繼續...");
                 }
                 else{
                         println!("已取消刪除");
@@ -136,12 +136,12 @@ fn clear_images() {
 fn unpack() {
         let ota = Path::new("ota");
         let images = Path::new("images");
-        let  zip = Path::new("ota/update.zip");
+        let zip = Path::new("ota/update.zip");
         let bin = Path::new("ota/payload.bin");
         if !zip.exists() {
                 println!("ERROR:系統找不到 /ota/update.zip ");
                 println!("請確認是否已將檔案改名為update.zip並放入ota資料夾下 ");
-                pause_terminal();
+                pause_terminal("按 Enter 鍵繼續...");
                 return;
         }
         let zip_result = Command::new("7z")
@@ -153,19 +153,18 @@ fn unpack() {
                 .expect("❌ 呼叫 7z 失敗，請確認是否安裝 p7zip");
         if zip_result.success() {
                 println!("解壓縮update.zip成功");
-                println!("按任意鍵繼續提取payload.bin....");
-                pause_terminal();
+                pause_terminal("按任意鍵繼續提取payload.bin....");
         }
         else {
                 println!("ERROR: 解壓縮失敗，請確認 update.zip 是否損壞。");
-                pause_terminal();
+                pause_terminal("按 Enter 鍵繼續...");
                 clear_screen();
                 return;
         }
         if !bin.exists() {
                 println!("提取payload.bin失敗");
                 println!("確認檔案是否存在");
-                pause_terminal();
+                pause_terminal("按 Enter 鍵繼續...");
                 clear_screen();
                 return;
         }
@@ -180,12 +179,112 @@ fn unpack() {
         if bin_result.success() {
                 println!("解包payload.bin成功");
         }
-        pause_terminal();
+        pause_terminal("按 Enter 鍵繼續...");
 }
 
-fn Start(){
+fn start(){
+        loop{
+                println!("1.升/降級?");
+                println!("2.救磚(限同版本刷入)");
+                println!("3.返回");
+                print!("?");
+                io::stdout().flush().unwrap();
+                let mut input =  String::new();
+                io::stdin().read_line(&mut input).unwrap();
+                match input.trim().parse::<i32>(){
+                        Ok(1) => {
+                                shengijanji();
+                                break;
+                        }
+                        Ok(2) => {
+                                jiuzhuan();
+                                break;
+                        }
+                        _ => {
+                                println!("Invalid choice")
+                        }
+                }
+        }
+}
+fn shengijanji(){
+        //let mut v: Vec<String> = Vec::new();
+        let cow_partitions = [ "system", "system_dlkm", "system_ext", "vendor","product",
+        "odm","my_bigball","my_carrier","my_engineering","my_heytap",
+        "my_manifest","my_product","my_region", "my_stock", "odm_dlkm", "vendor_dlkm"
+        ];
+        let fw_partitions = [
+                 "vbmeta", "vbmeta_system", "vbmeta_vendor", "vendor_boot", "init_boot", "boot",
+        "recovery", "bluetooth", "cpucp", "cpucp_dtb", "dsp", "dtbo", "engineering_cdt",
+        "featenabler", "oplus_sec", "shrm", "splash", "uefi", "aop", "aop_config",
+        "devcfg", "hyp", "imagefv", "keymaster", "oplusstanvbk", "qupfw", "tz",
+        "uefisecapp", "abl", "xbl", "xbl_config", "xbl_ramdump"
+        ];
+        let sys_partitions = [
+                "my_bigball", "my_carrier", "my_engineering", "my_heytap", "my_manifest",
+        "my_product", "my_region", "my_stock", "odm", "product", "system",
+        "system_dlkm", "system_ext", "vendor", "vendor_dlkm"
+        ];
+
+        let img_dir = Path::new("images");
+
+        let modem_path = Path::new("images/modem.img");
+        if modem_path.exists() {
+                for slot in ["a","b"]{
+                        let partition_name = format!("modem_{}",slot);
+                        let _ = Command::new("fastboot")
+                        .args(["flash",&partition_name])
+                        .arg(modem_path)
+                        .status();
+                }   
+        }
+        println!("\n正在進入Fastboot模式，請勿動手機和電腦");
+        let _ = Command::new("fastboot").args(["reboot","fastboot"]).status();
+        println!("Please wait for 10 seconds...");
+        thread::sleep(Duration::from_secs(10));
+        for s in cow_partitions{
+                for slot in ["a","b"]{
+                        let partition_name = format!("{}_{}-cow",s,slot);//{system}_{a}-cow
+                        let _ = Command::new("fastboot")
+                        .args(["delete-logical-partition",&partition_name])
+                        .status();
+                }
+        }
+        for s in fw_partitions{
+                let img = format!("{}.img",s);
+                let img_path = img_dir.join(&img);
+                if img_path.exists() {
+                        for slot in ["a","b"]{
+                                let partition_name = format!("{}_{}",s , slot);
+                                let _ = Command::new("fastboot")
+                                .args(["flash",&partition_name])
+                                .arg(&img_path)
+                                .status();
+                        }
+                }
+                else {
+                        if s == "cpucp_dtb" || s == "oplusstanvbk" {
+                                println!("\n[略過] 未找到可選分區 {}, 已自動忽略", img);
+                        }
+                }
+        }
+        for s in sys_partitions{
+                let img = format!("{}.img",s);
+                let img_path = img_dir.join(img);
+                if img_path.exists() {
+                        let _ = Command::new("fastboot")
+                        .args(["flash",s])
+                        .arg(img_path)
+                        .status();
+                }
+        }
+        println!("\n請在手機選擇語言，並選擇格式化數據後重啟");
+        pause_terminal("\n刷機完成，按任意鍵返回主頁");
+}
+fn jiuzhuan(){
 
 }
+
+
 fn main() {
         let _ = fs::create_dir_all("images");
         let _ = fs::create_dir_all("tools");
@@ -193,17 +292,17 @@ fn main() {
         loop {
                 let choice = enter_choice();
                 match choice {
-                        1 => println!("執行：一鍵安裝驅動..."),
+                        1 => println!("待刪"),
                         2 => environment(),
                         3 => unpack(),
                         4 => clear_ota(),
                         5 => clear_images(),
-                        6 => println!("開始刷機"),
+                        6 => start(),
                         7=> {
-                                println!("結束");
+                                println!("end");
                                 break;
                         }
-                        _ => println!("無效選擇"),
+                        _ => println!("invalid choice"),
                 }
                 println!();
         }
